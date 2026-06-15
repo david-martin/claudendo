@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+pillow
+numpy
+anthropic
+pytest
+httpx
