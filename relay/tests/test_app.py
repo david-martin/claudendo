@@ -33,3 +33,8 @@ def test_rate_limited(client):
         client.post("/describe", content=b"\x00\x00\x00\x00", headers=_hdrs())
     r = client.post("/describe", content=b"\x00\x00\x00\x00", headers=_hdrs())
     assert r.status_code == 429
+
+def test_error_responses_carry_x_description(client):
+    r = client.post("/describe", content=b"\x00\x00\x00\x00", headers=_hdrs("wrong"))
+    assert r.status_code == 401
+    assert r.headers["X-Description"] == "auth failed"
