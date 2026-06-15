@@ -2,8 +2,12 @@ import io
 import numpy as np
 from PIL import Image
 
+MAX_DIM = 4096
+
 def to_jpeg(raw: bytes, w: int, h: int, fmt: str) -> bytes:
     fmt = fmt.lower()
+    if not (0 < w <= MAX_DIM and 0 < h <= MAX_DIM):
+        raise ValueError(f"dimensions out of range: {w}x{h}")
     if fmt == "rgb565":
         if len(raw) != w * h * 2:
             raise ValueError(f"rgb565 expects {w*h*2} bytes, got {len(raw)}")

@@ -15,3 +15,8 @@ def test_rejects_short_buffer():
     import pytest
     with pytest.raises(ValueError):
         to_jpeg(b"\x00", w=2, h=1, fmt="rgb565")
+
+def test_rejects_out_of_range_dimensions():
+    import pytest
+    with pytest.raises(ValueError):
+        to_jpeg(b"\x00\x00", w=999999999, h=999999999, fmt="rgb565")
