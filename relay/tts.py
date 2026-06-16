@@ -1,17 +1,24 @@
-import io
+import json
+import os
 import subprocess
-import wave
+import sys
+
+# Piper neural TTS (local, CPU). Outputs raw s16le mono PCM at the model's native rate.
+PIPER_MODEL = os.environ.get(
+    "PIPER_MODEL",
+    "/home/claudendo/claudendo/voices/en_US-lessac-medium.onnx",
+)
+
+def _rate() -> int:
+    try:
+        with open(PIPER_MODEL + ".json") as f:
+            return int(json.load(f)["audio"]["sample_rate"])
+    except Exception:
+        return 22050
 
 def synthesize(text: str) -> tuple[bytes, int]:
     proc = subprocess.run(
-        ["espeak-ng", "-v", "en", "--stdout", text],
-        capture_output=True, check=True, timeout=10,
+        [sys.executable, "-m", "piper", "--model", PIPER_MODEL, "--output-raw"],
+        input=text.encode("utf-8"), capture_output=True, check=True, timeout=30,
     )
-    with wave.open(io.BytesIO(proc.stdout), "rb") as w:
-        if w.getnchannels() != 1 or w.getsampwidth() != 2:
-            raise RuntimeError(
-                f"unexpected espeak output: channels={w.getnchannels()} samplewidth={w.getsampwidth()}"
-            )
-        rate = w.getframerate()
-        pcm = w.readframes(w.getnframes())
-    return pcm, rate
+    return proc.stdout, _rate()

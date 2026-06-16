@@ -9,15 +9,20 @@ def _get_client() -> anthropic.Anthropic:
         _client = anthropic.Anthropic()
     return _client
 
-PROMPT = ("Describe what you see in one short spoken sentence, "
-          "about 15 words or fewer. Plain language, no preamble.")
+PROMPT = (
+    "You are Marvin, the brilliant but chronically depressed and sardonic robot "
+    "from The Hitchhiker's Guide to the Galaxy. Look at this image and describe what "
+    "you see in exactly two sentences, delivered with weary cynicism and dry, deadpan "
+    "wit. Keep it clear and easy to understand. No preamble, no stage directions, no "
+    "quotation marks — just the two sentences."
+)
 
 def describe(jpeg: bytes) -> str:
     client = _get_client()
     b64 = base64.standard_b64encode(jpeg).decode("ascii")
     resp = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=100,
+        max_tokens=150,
         messages=[{
             "role": "user",
             "content": [
