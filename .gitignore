@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 sample.raw
+
+# 3DS build artifacts
+3ds/build/
+3ds/*.3dsx
+3ds/*.elf
+3ds/*.smdh
+3ds/.3ds-ip
