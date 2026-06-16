@@ -38,3 +38,18 @@ def test_error_responses_carry_x_description(client):
     r = client.post("/describe", content=b"\x00\x00\x00\x00", headers=_hdrs("wrong"))
     assert r.status_code == 401
     assert r.headers["X-Description"] == "auth failed"
+
+def test_unicode_description_is_ascii_sanitized_in_header(monkeypatch):
+    # Marvin's prose can contain smart quotes / em-dashes — these are not valid
+    # in an HTTP header (latin-1) and previously crashed response send.
+    fancy = "I see “nothing” — how typical… it’s pointless."
+    monkeypatch.setattr(appmod.vision, "describe", lambda jpeg: fancy)
+    monkeypatch.setattr(appmod.tts, "synthesize", lambda text: (b"\x01\x02" * 10, 22050))
+    monkeypatch.setattr(appmod.imaging, "to_jpeg", lambda raw, w, h, fmt: b"jpeg")
+    appmod._hits.clear()
+    client = TestClient(appmod.app)
+    r = client.post("/describe", content=b"\x00\x00\x00\x00", headers=_hdrs())
+    assert r.status_code == 200
+    desc = r.headers["X-Description"]
+    desc.encode("ascii")  # must not raise
+    assert desc == 'I see "nothing" - how typical... it\'s pointless.'

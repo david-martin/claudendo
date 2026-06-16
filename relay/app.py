@@ -15,6 +15,17 @@ MAX_BODY = 1_000_000       # ~1 MB
 app = FastAPI()
 _hits: dict[str, list[float]] = defaultdict(list)
 
+_PUNCT = {
+    "‘": "'", "’": "'", "“": '"', "”": '"',
+    "–": "-", "—": "-", "…": "...", " ": " ",
+}
+
+def _ascii_header(text: str) -> str:
+    for uni, asc in _PUNCT.items():
+        text = text.replace(uni, asc)
+    # drop anything still outside ASCII so the value is a valid HTTP header
+    return text.encode("ascii", "ignore").decode("ascii").strip()
+
 def _err(status: int, msg: str) -> Response:
     return Response(content=msg.encode("ascii"), status_code=status,
                     media_type="text/plain",
@@ -52,10 +63,13 @@ async def describe(request: Request):
         text = vision.describe(jpeg)
     except Exception:
         return _err(502, "vision unavailable")
+    # TTS gets the full Unicode text; the HTTP header must be ASCII-safe
+    # (HTTP headers are latin-1; smart quotes / em-dashes in Marvin's prose break send).
+    desc_hdr = _ascii_header(text)
     try:
         pcm, rate = tts.synthesize(text or "I see nothing.")
     except Exception:
         return Response(content=b"", media_type="application/octet-stream",
-                        headers={"X-Description": text, "X-Sample-Rate": "0"})
+                        headers={"X-Description": desc_hdr, "X-Sample-Rate": "0"})
     return Response(content=pcm, media_type="application/octet-stream",
-                    headers={"X-Description": text, "X-Sample-Rate": str(rate)})
+                    headers={"X-Description": desc_hdr, "X-Sample-Rate": str(rate)})
