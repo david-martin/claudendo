@@ -23,8 +23,10 @@ _PUNCT = {
 def _ascii_header(text: str) -> str:
     for uni, asc in _PUNCT.items():
         text = text.replace(uni, asc)
-    # drop anything still outside ASCII so the value is a valid HTTP header
-    return text.encode("ascii", "ignore").decode("ascii").strip()
+    # drop anything outside printable ASCII (control chars like \n/\t are valid
+    # ASCII but illegal in an HTTP header value), collapse whitespace runs.
+    text = text.encode("ascii", "ignore").decode("ascii")
+    return " ".join(text.split())
 
 def _err(status: int, msg: str) -> Response:
     return Response(content=msg.encode("ascii"), status_code=status,
