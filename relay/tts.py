@@ -9,6 +9,10 @@ PIPER_MODEL = os.environ.get(
     "/home/claudendo/claudendo/voices/en_US-lessac-medium.onnx",
 )
 
+# Marvin effect: report a lower playback rate so the 3DS plays Piper's audio
+# deeper and slower (more morose). 1.0 = unchanged; lower = deeper/drearier.
+PITCH_FACTOR = float(os.environ.get("PIPER_PITCH_FACTOR", "0.82"))
+
 def _rate() -> int:
     try:
         with open(PIPER_MODEL + ".json") as f:
@@ -21,4 +25,5 @@ def synthesize(text: str) -> tuple[bytes, int]:
         [sys.executable, "-m", "piper", "--model", PIPER_MODEL, "--output-raw"],
         input=text.encode("utf-8"), capture_output=True, check=True, timeout=30,
     )
-    return proc.stdout, _rate()
+    rate = max(8000, int(_rate() * PITCH_FACTOR))
+    return proc.stdout, rate
