@@ -8,7 +8,7 @@ from relay import app as appmod
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setattr(appmod.vision, "describe", lambda jpeg, persona="marvin": "a cat")
-    monkeypatch.setattr(appmod.tts, "synthesize", lambda text: (b"\x01\x02" * 600, 22050))
+    monkeypatch.setattr(appmod.tts, "synthesize", lambda text, persona="marvin": (b"\x01\x02" * 600, 22050))
     monkeypatch.setattr(appmod.imaging, "to_jpeg", lambda raw, w, h, fmt: b"jpeg")
     appmod._hits.clear()
     return TestClient(appmod.app)
@@ -53,7 +53,7 @@ def test_unicode_description_is_ascii_sanitized_in_header(monkeypatch):
     # in an HTTP header (latin-1) and previously crashed response send.
     fancy = "I see “nothing” — how typical…\nit’s pointless.\t"
     monkeypatch.setattr(appmod.vision, "describe", lambda jpeg, persona="marvin": fancy)
-    monkeypatch.setattr(appmod.tts, "synthesize", lambda text: (b"\x01\x02" * 10, 22050))
+    monkeypatch.setattr(appmod.tts, "synthesize", lambda text, persona="marvin": (b"\x01\x02" * 10, 22050))
     monkeypatch.setattr(appmod.imaging, "to_jpeg", lambda raw, w, h, fmt: b"jpeg")
     appmod._hits.clear()
     client = TestClient(appmod.app)

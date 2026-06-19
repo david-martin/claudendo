@@ -70,7 +70,7 @@ async def describe(request: Request):
     # (HTTP headers are latin-1; smart quotes / em-dashes in Marvin's prose break send).
     desc_hdr = _ascii_header(text)
     try:
-        pcm, rate = tts.synthesize(text or "I see nothing.")
+        pcm, rate = tts.synthesize(text or "I see nothing.", persona)
     except Exception:
         return Response(content=b"", media_type="application/octet-stream",
                         headers={"X-Description": desc_hdr, "X-Sample-Rate": "0"})
