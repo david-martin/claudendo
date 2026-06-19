@@ -36,7 +36,7 @@ static u16 ACCENT[N_PERSONA];   // filled in main() (macro needs runtime use is 
 #define CARD_Y0 34
 #define CARD_H 28
 #define BTN_Y 150
-#define BTN_H 28
+#define BTN_H 30
 #define CAMBTN_X 8
 #define CAMBTN_W 148
 #define DESCBTN_X 164
@@ -121,11 +121,15 @@ static void flash_top(const u16 *frozen, int persona, bool inner){
 }
 
 static void draw_button(const GfxTarget *t, int x, int y, int w, int h,
-                        const char *label, u16 fg, u16 bg, u16 border){
+                        const char *label, const char *hint, u16 fg, u16 bg, u16 border){
     gfx_fill_rect(t, x, y, w, h, bg);
     gfx_border(t, x, y, w, h, 1, border);
     int tw = gfx_text_width(2, label);
-    gfx_text(t, x + (w - tw)/2, y + (h - 16)/2, 2, fg, label);
+    gfx_text(t, x + (w - tw)/2, y + 4, 2, fg, label);
+    if (hint && *hint){
+        int hw = gfx_text_width(1, hint);
+        gfx_text(t, x + (w - hw)/2, y + 21, 1, fg, hint);
+    }
 }
 
 static void draw_bottom(int persona, bool inner, const char *status){
@@ -158,17 +162,14 @@ static void draw_bottom(int persona, bool inner, const char *status){
 
     // camera + describe buttons
     char camlbl[24]; snprintf(camlbl, sizeof camlbl, "CAM:%s", inner ? "Inner" : "Outer");
-    draw_button(&t, CAMBTN_X, BTN_Y, CAMBTN_W, BTN_H, camlbl, COL_TEXT, COL_PANEL, COL_DIM);
-    draw_button(&t, DESCBTN_X, BTN_Y, DESCBTN_W, BTN_H, "DESCRIBE", COL_HEADERTX, a, a);
+    draw_button(&t, CAMBTN_X, BTN_Y, CAMBTN_W, BTN_H, camlbl, "(L/R)", COL_TEXT, COL_PANEL, COL_DIM);
+    draw_button(&t, DESCBTN_X, BTN_Y, DESCBTN_W, BTN_H, "DESCRIBE", "(A)", COL_HEADERTX, a, a);
 
     // status strip
     if (status && *status){
-        gfx_fill_rect(&t, 8, 184, 304, 20, COL_PANEL);
-        gfx_text(&t, 14, 188, 1, COL_TEXT, status);
+        gfx_fill_rect(&t, 8, 188, 304, 22, COL_PANEL);
+        gfx_text(&t, 14, 194, 1, COL_TEXT, status);
     }
-    // footer hints
-    gfx_text(&t, 8,  212, 1, COL_DIM, "Up/Down: persona     L/R: flip camera");
-    gfx_text(&t, 8,  224, 1, COL_DIM, "A or tap DESCRIBE: shoot     START: exit");
 
     gfxFlushBuffers();
     gfxScreenSwapBuffers(GFX_BOTTOM, false);
