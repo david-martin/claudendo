@@ -32,6 +32,15 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__
 
+# Optional baked-in relay config for self-contained "shareable" builds:
+#   make CLAUDENDO_HOST=claudendo.davecloud.dev CLAUDENDO_TOKEN=xxxx
+# When set, the token is compiled into the binary (config_load uses it and skips
+# the SD config). NEVER commit the token; pass it on the command line only. A
+# plain `make` (no vars) builds the normal SD-config version.
+ifneq ($(strip $(CLAUDENDO_TOKEN)),)
+CFLAGS	+=	-DCLAUDENDO_HOST='"$(CLAUDENDO_HOST)"' -DCLAUDENDO_TOKEN='"$(CLAUDENDO_TOKEN)"'
+endif
+
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
 ASFLAGS	:=	-g $(ARCH)
