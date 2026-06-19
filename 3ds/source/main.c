@@ -34,7 +34,7 @@ static u16 ACCENT[N_PERSONA];   // filled in main() (macro needs runtime use is 
 #define CARD_X 8
 #define CARD_W 304
 #define CARD_Y0 34
-#define CARD_H 27
+#define CARD_H 28
 #define BTN_Y 150
 #define BTN_H 28
 #define CAMBTN_X 8
@@ -101,11 +101,11 @@ static void draw_top_frozen(const u16 *frozen, int persona, bool inner, bool dim
         gfx_text(&t, (t.w - gfx_text_width(3, msg))/2, t.h/2 - 12, 3, COL_WHITE, msg);
     }
     if (subtitle && *subtitle){
-        int boxh = 78, by = t.h - boxh;
+        int boxh = 96, by = t.h - boxh;   // bottom 96px; 1x text wraps to fit 2 sentences
         gfx_darken_rect(&t, 0, by, t.w, boxh);
         gfx_darken_rect(&t, 0, by, t.w, boxh);
-        gfx_fill_rect(&t, 0, by, t.w, 3, ACCENT[persona]);
-        gfx_text_wrap(&t, 12, by + 10, t.w - 24, 2, 4, COL_WHITE, subtitle);
+        gfx_fill_rect(&t, 0, by, t.w, 2, ACCENT[persona]);
+        gfx_text_wrap(&t, 12, by + 8, t.w - 24, 1, 5, COL_WHITE, subtitle);
     }
     gfxFlushBuffers();
     gfxScreenSwapBuffers(GFX_TOP, false);
@@ -133,11 +133,10 @@ static void draw_bottom(int persona, bool inner, const char *status){
     u16 a = ACCENT[persona];
     gfx_clear(&t, COL_BG);
 
-    // header bar (persona accent)
+    // header bar (persona accent). Tagline lives on the cards, not here, so it
+    // never collides with the title.
     gfx_fill_rect(&t, 0, 0, t.w, 28, a);
     gfx_text(&t, 8, 6, 2, COL_HEADERTX, "claudendo");
-    const char *tag = PERSONA_TAG[persona];
-    gfx_text(&t, t.w - 6 - gfx_text_width(1, tag), 11, 1, COL_HEADERTX, tag);
 
     // persona cards
     for (int i = 0; i < N_PERSONA; i++){
@@ -152,8 +151,9 @@ static void draw_bottom(int persona, bool inner, const char *status){
             gfx_fill_rect(&t, CARD_X, cy, CARD_W, CARD_H-2, COL_PANEL);
         }
         gfx_fill_rect(&t, CARD_X, cy, 4, CARD_H-2, ACCENT[i]);          // accent stripe
-        if (sel) gfx_text(&t, CARD_X + 10, cy + 5, 2, ACCENT[i], ">");
-        gfx_text(&t, CARD_X + 28, cy + 4, 2, sel ? COL_TEXT : COL_DIM, PERSONA_NAME[i]);
+        if (sel) gfx_text(&t, CARD_X + 10, cy + 3, 2, ACCENT[i], ">");
+        gfx_text(&t, CARD_X + 28, cy + 2,  2, sel ? COL_TEXT : COL_DIM, PERSONA_NAME[i]);
+        gfx_text(&t, CARD_X + 28, cy + 18, 1, sel ? ACCENT[i] : COL_DIM, PERSONA_TAG[i]);
     }
 
     // camera + describe buttons
@@ -171,13 +171,16 @@ static void draw_bottom(int persona, bool inner, const char *status){
     gfx_text(&t, 8,  224, 1, COL_DIM, "A or tap DESCRIBE: shoot     START: exit");
 
     gfxFlushBuffers();
+    gfxScreenSwapBuffers(GFX_BOTTOM, false);
 }
 
 int main(void){
     gfxInitDefault();
     gfxSetScreenFormat(GFX_TOP, GSP_RGB565_OES);
     gfxSetScreenFormat(GFX_BOTTOM, GSP_RGB565_OES);
-    gfxSetDoubleBuffering(GFX_BOTTOM, false);
+    // Both screens stay double-buffered (default). Disabling DB on the bottom left
+    // its displayed buffer in the default 24-bit format -> RGB565 writes garbled it.
+    // We redraw + swap both screens every frame instead.
 
     ACCENT[0] = GFX_RGB565(120,150,175);   // Marvin   - steel blue
     ACCENT[1] = GFX_RGB565(90,190,95);     // Bob Ross - warm green
@@ -194,15 +197,17 @@ int main(void){
     bool ready = net && ps && rom && config_load(&cfg);
 
     if (!ready) {
-        GfxTarget t = bot_target();
-        gfx_clear(&t, COL_BG);
-        gfx_text(&t, 10, 16, 2, GFX_RGB565(230,90,90), "claudendo - setup");
-        if (!net||!ps||!rom) gfx_text_wrap(&t, 10, 56, 300, 1, 4, COL_TEXT, "init failed (net/ps/romfs).");
-        else gfx_text_wrap(&t, 10, 56, 300, 1, 4, COL_TEXT,
-            "Missing sdmc:/claudendo/config.cfg  (line 1 = host, line 2 = token).");
-        gfx_text(&t, 10, 210, 1, COL_DIM, "Press START to exit");
-        gfxFlushBuffers();
-        while (aptMainLoop()){ hidScanInput(); if (hidKeysDown()&KEY_START) break; gspWaitForVBlank(); }
+        while (aptMainLoop()){
+            GfxTarget t = bot_target();
+            gfx_clear(&t, COL_BG);
+            gfx_text(&t, 10, 16, 2, GFX_RGB565(230,90,90), "claudendo - setup");
+            if (!net||!ps||!rom) gfx_text_wrap(&t, 10, 56, 300, 1, 4, COL_TEXT, "init failed (net/ps/romfs).");
+            else gfx_text_wrap(&t, 10, 56, 300, 1, 4, COL_TEXT,
+                "Missing sdmc:/claudendo/config.cfg  (line 1 = host, line 2 = token).");
+            gfx_text(&t, 10, 210, 1, COL_DIM, "Press START to exit");
+            gfxFlushBuffers(); gfxScreenSwapBuffers(GFX_BOTTOM, false);
+            hidScanInput(); if (hidKeysDown()&KEY_START) break; gspWaitForVBlank();
+        }
     } else {
         u16 *preview = (u16*)linearAlloc(CAM_W*CAM_H*2);
         u16 *frozen  = (u16*)linearAlloc(CAM_W*CAM_H*2);
@@ -218,20 +223,20 @@ int main(void){
             u32 k = hidKeysDown();
             if (k & KEY_START) break;
 
-            bool redraw_b = false;
             bool shoot = (k & KEY_A);
 
-            if (k & KEY_DUP)   { persona = (persona + N_PERSONA - 1) % N_PERSONA; redraw_b = true; }
-            if (k & KEY_DDOWN) { persona = (persona + 1) % N_PERSONA; redraw_b = true; }
-            if (k & (KEY_L | KEY_R)) { inner = !inner; if (cam) camera_set_inner(inner); redraw_b = true; }
+            if (k & KEY_DUP)   { persona = (persona + N_PERSONA - 1) % N_PERSONA; }
+            if (k & KEY_DDOWN) { persona = (persona + 1) % N_PERSONA; }
+            if (k & (KEY_L | KEY_R)) { inner = !inner; if (cam) camera_set_inner(inner); }
             if (k & KEY_TOUCH) {
                 touchPosition tp; hidTouchRead(&tp);
                 int act = hit_test(tp.px, tp.py);
-                if (act >= 0 && act < N_PERSONA) { persona = act; redraw_b = true; }
-                else if (act == 100) { inner = !inner; if (cam) camera_set_inner(inner); redraw_b = true; }
+                if (act >= 0 && act < N_PERSONA) { persona = act; }
+                else if (act == 100) { inner = !inner; if (cam) camera_set_inner(inner); }
                 else if (act == 101) { shoot = true; }
             }
-            if (redraw_b) { status = READY; draw_bottom(persona, inner, status); }
+            status = READY;
+            draw_bottom(persona, inner, status);   // double-buffered: redraw every frame
 
             // live preview
             if (cam && camera_frame(preview)) {
