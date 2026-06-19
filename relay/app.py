@@ -61,8 +61,9 @@ async def describe(request: Request):
         jpeg = imaging.to_jpeg(raw, w, h, fmt)
     except (KeyError, ValueError):
         return _err(400, "bad image")
+    persona = request.headers.get("x-persona", vision.DEFAULT_PERSONA)
     try:
-        text = vision.describe(jpeg)
+        text = vision.describe(jpeg, persona)
     except Exception:
         return _err(502, "vision unavailable")
     # TTS gets the full Unicode text; the HTTP header must be ASCII-safe

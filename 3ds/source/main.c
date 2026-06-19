@@ -19,9 +19,16 @@ static void draw_top(const u16 *img){
     gfxScreenSwapBuffers(GFX_TOP, false);
 }
 
-static void show_bottom(const char *host, const char *status, const char *desc){
+#define N_PERSONA 3
+static const char *PERSONA_KEY[N_PERSONA]  = {"marvin", "bobross", "attenborough"};
+static const char *PERSONA_NAME[N_PERSONA] = {"Marvin", "Bob Ross", "David Attenborough"};
+
+static void show_bottom(const char *host, int persona, bool inner,
+                        const char *status, const char *desc){
     consoleClear();
     printf("claudendo\nhost: %s\n\n", host);
+    printf("Persona (Up/Down): %s\n", PERSONA_NAME[persona]);
+    printf("Camera  (L/R):     %s\n\n", inner ? "Inner (selfie)" : "Outer");
     if (status && *status) printf("%s\n\n", status);
     if (desc && *desc)     printf("> %s\n\n", desc);
     printf("\x1b[29;0HA: describe   START: exit");
@@ -51,11 +58,28 @@ int main(void){
     } else {
         u16 *preview = (u16*)linearAlloc(CAM_W*CAM_H*2);
         u16 *frozen  = (u16*)linearAlloc(CAM_W*CAM_H*2);
-        show_bottom(cfg.host, aud ? "Live. Point and press A." : "Live (no audio). Press A.", NULL);
+        int persona = 0;            // default: Marvin
+        bool inner = false;         // default: outer camera
+        char last_desc[600] = {0};
+        const char *LIVE = aud ? "Live. Point and press A." : "Live (no audio). Press A.";
+        show_bottom(cfg.host, persona, inner, LIVE, NULL);
         while (aptMainLoop()){
             hidScanInput();
             u32 k = hidKeysDown();
             if (k & KEY_START) break;
+
+            // Up/Down: cycle persona
+            if (k & (KEY_DUP | KEY_DDOWN)) {
+                persona = (k & KEY_DUP) ? (persona + N_PERSONA - 1) % N_PERSONA
+                                        : (persona + 1) % N_PERSONA;
+                show_bottom(cfg.host, persona, inner, LIVE, last_desc[0] ? last_desc : NULL);
+            }
+            // L/R: toggle inner/outer camera
+            if (k & (KEY_L | KEY_R)) {
+                inner = !inner;
+                if (cam) camera_set_inner(inner);
+                show_bottom(cfg.host, persona, inner, LIVE, last_desc[0] ? last_desc : NULL);
+            }
 
             if (cam && camera_frame(preview)) draw_top(preview);
 
@@ -63,15 +87,16 @@ int main(void){
                 memcpy(frozen, preview, CAM_W*CAM_H*2);
                 draw_top(frozen);
                 if (aud) audio_sfx_shutter();
-                show_bottom(cfg.host, "Thinking...", NULL);
+                show_bottom(cfg.host, persona, inner, "Thinking...", NULL);
                 if (aud) audio_proc_start();
                 char desc[600]={0}; u8 *pcm=NULL; size_t plen=0; int rate=22050;
-                int st = http_describe(cfg.host, cfg.token, (u8*)frozen, CAM_W, CAM_H,
+                int st = http_describe(cfg.host, cfg.token, PERSONA_KEY[persona],
+                                       (u8*)frozen, CAM_W, CAM_H,
                                        desc, sizeof desc, &pcm, &plen, &rate);
                 if (aud) audio_proc_stop();
-                if (st == 200)      show_bottom(cfg.host, NULL, desc);
-                else if (st < 0)    show_bottom(cfg.host, "connection failed", desc[0]?desc:NULL);
-                else { char e[64]; snprintf(e,sizeof e,"error %d", st); show_bottom(cfg.host, e, desc[0]?desc:NULL); }
+                if (st == 200) { strncpy(last_desc, desc, sizeof last_desc - 1); last_desc[sizeof last_desc - 1] = 0; show_bottom(cfg.host, persona, inner, NULL, desc); }
+                else if (st < 0)    show_bottom(cfg.host, persona, inner, "connection failed", desc[0]?desc:NULL);
+                else { char e[64]; snprintf(e,sizeof e,"error %d", st); show_bottom(cfg.host, persona, inner, e, desc[0]?desc:NULL); }
                 if (pcm && plen && aud) {
                     audio_play_voice(pcm, plen, rate);
                     while (audio_voice_playing() && aptMainLoop()){
@@ -80,7 +105,7 @@ int main(void){
                     }
                 }
                 if (pcm) linearFree(pcm);
-                show_bottom(cfg.host, "Live. Point and press A.", desc[0]?desc:NULL);
+                show_bottom(cfg.host, persona, inner, LIVE, last_desc[0] ? last_desc : NULL);
             }
             gspWaitForVBlank();
         }

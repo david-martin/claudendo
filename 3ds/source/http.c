@@ -21,11 +21,12 @@ static char *strichr(char *s, const char *needle){
     return NULL;
 }
 
-int http_describe(const char *host, const char *token,
+int http_describe(const char *host, const char *token, const char *persona,
                   const u8 *img, int w, int h,
                   char *desc, size_t desc_cap,
                   u8 **pcm_out, size_t *pcm_len, int *rate_out)
 {
+    if (!persona || !*persona) persona = "marvin";
     *pcm_out  = NULL;
     *pcm_len  = 0;
     *rate_out = 22050;
@@ -44,10 +45,11 @@ int http_describe(const char *host, const char *token,
         "X-Image-Width: %d\r\n"
         "X-Image-Height: %d\r\n"
         "X-Image-Format: rgb565\r\n"
+        "X-Persona: %s\r\n"
         "Content-Length: %d\r\n"
         "Connection: close\r\n"
         "\r\n",
-        host, token, w, h, body_len);
+        host, token, w, h, persona, body_len);
 
     if (hdr_len < 0 || hdr_len >= (int)sizeof(hdr)) { tls_close(); return -2; }
     if (tls_write(hdr, (size_t)hdr_len) < 0) { tls_close(); return -2; }

@@ -1,15 +1,24 @@
 #include "camera.h"
 
+// Configure both lenses up front so switching is just a re-activate.
+static void configure(u32 cams){
+    CAMU_SetSize(cams, SIZE_CTR_TOP_LCD, CONTEXT_A);                 // 400x240
+    CAMU_SetOutputFormat(cams, OUTPUT_RGB_565, CONTEXT_A);
+    CAMU_SetFrameRate(cams, FRAME_RATE_30);
+    CAMU_SetNoiseFilter(cams, true);
+    CAMU_SetAutoExposure(cams, true);
+    CAMU_SetAutoWhiteBalance(cams, true);
+}
+
 bool camera_init(void){
     if (R_FAILED(camInit())) return false;
-    CAMU_SetSize(SELECT_OUT1, SIZE_CTR_TOP_LCD, CONTEXT_A);          // 400x240
-    CAMU_SetOutputFormat(SELECT_OUT1, OUTPUT_RGB_565, CONTEXT_A);
-    CAMU_SetFrameRate(SELECT_OUT1, FRAME_RATE_30);
-    CAMU_SetNoiseFilter(SELECT_OUT1, true);
-    CAMU_SetAutoExposure(SELECT_OUT1, true);
-    CAMU_SetAutoWhiteBalance(SELECT_OUT1, true);
+    configure(SELECT_OUT1 | SELECT_IN1);
     CAMU_Activate(SELECT_OUT1);
     return true;
+}
+
+void camera_set_inner(bool inner){
+    CAMU_Activate(inner ? SELECT_IN1 : SELECT_OUT1);
 }
 
 bool camera_frame(u16 *out){

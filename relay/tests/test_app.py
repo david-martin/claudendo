@@ -7,7 +7,7 @@ from relay import app as appmod
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr(appmod.vision, "describe", lambda jpeg: "a cat")
+    monkeypatch.setattr(appmod.vision, "describe", lambda jpeg, persona="marvin": "a cat")
     monkeypatch.setattr(appmod.tts, "synthesize", lambda text: (b"\x01\x02" * 600, 22050))
     monkeypatch.setattr(appmod.imaging, "to_jpeg", lambda raw, w, h, fmt: b"jpeg")
     appmod._hits.clear()
@@ -39,11 +39,20 @@ def test_error_responses_carry_x_description(client):
     assert r.status_code == 401
     assert r.headers["X-Description"] == "auth failed"
 
+def test_persona_header_is_forwarded_to_vision(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(appmod.vision, "describe",
+                        lambda jpeg, persona="marvin": seen.setdefault("p", persona) or "ok")
+    h = _hdrs(); h["X-Persona"] = "bobross"
+    r = client.post("/describe", content=b"\x00\x00\x00\x00", headers=h)
+    assert r.status_code == 200
+    assert seen["p"] == "bobross"
+
 def test_unicode_description_is_ascii_sanitized_in_header(monkeypatch):
     # Marvin's prose can contain smart quotes / em-dashes — these are not valid
     # in an HTTP header (latin-1) and previously crashed response send.
     fancy = "I see “nothing” — how typical…\nit’s pointless.\t"
-    monkeypatch.setattr(appmod.vision, "describe", lambda jpeg: fancy)
+    monkeypatch.setattr(appmod.vision, "describe", lambda jpeg, persona="marvin": fancy)
     monkeypatch.setattr(appmod.tts, "synthesize", lambda text: (b"\x01\x02" * 10, 22050))
     monkeypatch.setattr(appmod.imaging, "to_jpeg", lambda raw, w, h, fmt: b"jpeg")
     appmod._hits.clear()
